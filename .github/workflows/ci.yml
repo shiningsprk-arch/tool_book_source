@@ -23,9 +23,11 @@ jobs:
       - name: 安装宿主侧依赖（MyBooks 自带的那些）
         # 故意**不装 dukpy**：宿主 requirements.txt 里没有它，工具包靠内置副本兜底。
         # 不装，才能真正测到内置副本那条路（test_vendor 里那条"真加载"用例会在 cp312 上执行）。
+        # 其余都是宿主 requirements.txt 里确定会有的：requests/bs4/lxml/chardet/EbookLib
+        # 供引擎用，tornado 供 backend/tool.py 的 handler（tornado.escape）。
         run: |
           python -m pip install --upgrade pip
-          pip install pytest requests beautifulsoup4 lxml chardet EbookLib
+          pip install pytest requests beautifulsoup4 lxml chardet EbookLib tornado
 
       - name: 校验随包 dukpy 副本（sha256 清单 + 文件清单，离线）
         run: python scripts/fetch_vendor_wheels.py --check
