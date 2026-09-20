@@ -8,8 +8,12 @@
   MIT 要求"版权声明随副本
   一起分发"，所以让它们跟着包走。宿主安装时对顶层条目没有白名单限制（只做路径穿越防护），
   多这两条不影响安装 —— 校验方式见下：打完包会把产物再交给官方 `mytool validate` 跑一遍。
-- 打包用 stdlib `zipfile` 而不是 adm-zip，是为了拿到"固定时间戳 + 稳定条目顺序"的确定性
-  产物：同样的输入永远得到同一个 sha256，方便把哈希记进变更记录/商店登记。
+- 打包用 stdlib `zipfile` 而不是 adm-zip，是为了拿到**跨平台可复现**的产物：固定时间戳
+  （取自 manifest 的 publish_date）、稳定条目顺序、固定权限位、固定 zip 头的 "version made by"
+  宿主字段（详见 build() 里的注释）。本机（Windows/cp313）与 CI（ubuntu/cp312）各打一遍，
+  sha256 相同 —— 所以变更记录/商店登记里记的那个哈希对谁都成立。
+  （注：deflate 压缩流本身依赖 zlib 版本，同一台机器上重复打包必然一致，这一点由 CI 的
+  "打两遍比字节"守住。）
 
 用法：
     python scripts/build.py             # 校验 + 打包 + 打印 sha256 + 官方 validate
@@ -303,7 +307,14 @@ def build(manifest, entries, out_path):
         for rel, path in entries:
             info = zipfile.ZipInfo(rel, date_time=stamp)
             info.compress_type = zipfile.ZIP_DEFLATED
+            # ① 权限位固定（否则随 umask 变）
             info.external_attr = (0o644 & 0xFFFF) << 16
+            # ② "version made by" 里的宿主系统固定成 UNIX。CPython 的 ZipInfo 默认按当前平台
+            #    取 `create_system`（Windows=0/DOS，Linux=3/UNIX），这一个字节就会让**同一份
+            #    内容在 Windows 和 Linux 上打出不同的 sha256** —— 本机和 CI 各打一遍才发现：
+            #    解包内容逐字节一致、压缩后大小也一致，只有这个字段不同。
+            #    固定它之后，"仓库里记的 sha256"在哪个平台构建都成立。
+            info.create_system = 3
             with open(path, "rb") as f:
                 zf.writestr(info, f.read())
     return out_path
