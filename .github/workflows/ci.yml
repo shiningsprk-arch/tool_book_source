@@ -36,12 +36,14 @@ jobs:
         run: python -m pytest tests -q
 
       - name: 打包并检查确定性（两次打包必须字节相同）
+        # 刻意不写死版本号（dist/<tool_id>-<revision>.zip）：改 revision 时这条不该跟着坏
         run: |
           python scripts/build.py --no-mytool
-          cp dist/book_source-1.2.0.zip /tmp/first.zip
+          first=$(ls dist/*.zip)
+          cp "$first" /tmp/first.zip
           python scripts/build.py --no-mytool
           sha256sum dist/*.zip
-          cmp /tmp/first.zip dist/book_source-1.2.0.zip && echo "确定性 OK：两次打包字节相同"
+          cmp /tmp/first.zip "$first" && echo "确定性 OK：两次打包字节相同"
 
       - name: 官方脚手架校验（mytool validate）
         # 这是"符合 MyBooks 规范"的那道门禁：官方 tools_builder 的 validate 与宿主
