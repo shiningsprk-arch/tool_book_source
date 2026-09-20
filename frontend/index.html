@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>book_source</title>
+  <!--
+    视觉基调来自脚手架提供的 lib/theme.css（--mb-color-* 变量 + 基础组件 class，深浅色靠
+    <body data-theme>）；下面的 <style> 只放本页特有的布局补充。
+
+    本页由上游的 app/pages/toolbox/book_source.vue（Vuetify2 + Nuxt 页面）改写而来：
+    外部工具的前端运行在宿主的 <iframe> 里，拿不到宿主的 Vue/Vuetify，所以这里是一份
+    自包含的原生静态页，只通过 toolbox-bridge.js 跟宿主打交道。
+  -->
+  <link rel="stylesheet" href="lib/theme.css" />
+  <style>
+    body { margin: 16px 20px 24px; }
+    h1 { font-size: 1.25em; margin: 0 0 14px; text-align: center; }
+
+    /* theme.css 给 .mb-btn / .mb-dialog-overlay 设了 display，会盖掉 [hidden] 的 UA 规则
+       （display:none），导致 hidden 元素照样显示 —— 尤其是对话框遮罩会一直挂在页面上。
+       这条 !important 必须留在所有组件样式之后。 */
+    [hidden] { display: none !important; }
+
+    .bs-tabs { display: inline-flex; border: 1px solid var(--mb-color-border); border-radius: var(--mb-radius); overflow: hidden; margin-bottom: 14px; }
+    .bs-tab { border: none; background: transparent; color: var(--mb-color-text); font: inherit; padding: 6px 18px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .bs-tab + .bs-tab { border-left: 1px solid var(--mb-color-border); }
+    .bs-tab[aria-selected="true"] { color: var(--mb-color-primary); font-weight: 600; }
+
+    .bs-card { margin-bottom: 14px; }
+    .bs-card-title { font-size: 1em; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .bs-card .mb-divider { margin: 10px 0 12px; }
+    .bs-hint, .bs-empty { color: var(--mb-color-text-secondary); font-size: 0.85em; margin: 8px 0 0; }
+    .bs-empty { text-align: center; padding: 18px 0; }
+
+    .mb-btn--success { background: var(--mb-color-success); color: #fff; }
+    .mb-btn--error { background: var(--mb-color-error); color: #fff; }
+    .mb-btn--small { padding: 5px 10px; font-size: 0.85em; }
+    .mb-btn--block { width: 100%; justify-content: center; }
+
+    .bs-table-wrap { overflow-x: auto; }
+    table.bs-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+    table.bs-table th { text-align: left; font-weight: 500; color: var(--mb-color-text-secondary); padding: 6px 8px; border-bottom: 1px solid var(--mb-color-border); white-space: nowrap; }
+    table.bs-table td { padding: 6px 8px; border-bottom: 1px solid var(--mb-color-border); vertical-align: middle; }
+    table.bs-table tr:last-child td { border-bottom: none; }
+    .bs-c-center { text-align: center; }
+    .bs-cover { width: 30px; height: 40px; object-fit: contain; border-radius: 2px; background: var(--mb-color-surface); display: block; margin: 0 auto; }
+    .bs-cover--empty { display: flex; align-items: center; justify-content: center; color: var(--mb-color-text-secondary); }
+    .bs-truncate { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bs-actions { display: inline-flex; gap: 6px; }
+    .bs-name { font-weight: 500; }
+
+    .bs-pager { display: flex; justify-content: center; gap: 6px; padding: 10px 0 2px; flex-wrap: wrap; }
+    .bs-pager button { min-width: 30px; }
+    .bs-pager button[aria-current="true"] { background: var(--mb-color-primary); color: var(--mb-color-primary-contrast); border-color: var(--mb-color-primary); }
+
+    .bs-task { padding: 8px 0; border-bottom: 1px solid var(--mb-color-border); }
+    .bs-task:last-child { border-bottom: none; }
+    .bs-task-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .bs-task-name { font-weight: 500; }
+    .bs-task .mb-progress-linear { margin-top: 6px; }
+    .bs-task-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+    .bs-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
+    .bs-toolbar .mb-input { flex: 1 1 180px; }
+
+    .bs-source-list { max-height: 46vh; overflow-y: auto; }
+    .bs-source-item { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--mb-color-border); cursor: pointer; }
+    .bs-source-item:last-child { border-bottom: none; }
+    .bs-source-item:hover { background: var(--mb-color-surface); }
+    .bs-source-meta { color: var(--mb-color-text-secondary); font-size: 0.82em; }
+    .bs-source-text { min-width: 0; flex: 1 1 auto; }
+    .bs-source-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.92em; }
+    .bs-toggle { width: 22px; height: 22px; padding: 0; border-radius: 50%; justify-content: center; }
+    .bs-toggle--on { background: var(--mb-color-success); color: #fff; }
+    .bs-toggle--off { background: var(--mb-color-error); color: #fff; }
+    .bs-icon-btn { padding: 4px 6px; border: 1px solid var(--mb-color-border); background: transparent; color: var(--mb-color-text-secondary); border-radius: var(--mb-radius); cursor: pointer; display: inline-flex; }
+    .bs-icon-btn:hover { color: var(--mb-color-primary); border-color: var(--mb-color-primary); }
+
+    .bs-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.82em; }
+    .mb-dialog { max-width: 760px; }
+    .mb-dialog--narrow { max-width: 420px; }
+    .mb-dialog h3 { margin: 0 0 4px; font-size: 1.05em; display: flex; align-items: center; gap: 8px; }
+    .bs-dialog-head { display: flex; align-items: center; gap: 8px; }
+    .bs-dialog-foot { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; }
+    .bs-dialog-body { margin-top: 12px; }
+    .bs-scroll { max-height: 56vh; overflow-y: auto; }
+
+    @media (max-width: 720px) {
+      body { margin: 12px 12px 18px; }
+      /* 窄屏：结果表转卡片式，单元格用 data-label 显示列名 */
+      table.bs-table thead { display: none; }
+      table.bs-table, table.bs-table tbody, table.bs-table tr, table.bs-table td { display: block; width: 100%; }
+      table.bs-table tr { border-bottom: 1px solid var(--mb-color-border); padding: 8px 0; }
+      table.bs-table td { border: none; padding: 2px 0; display: flex; gap: 8px; }
+      table.bs-table td::before { content: attr(data-label); color: var(--mb-color-text-secondary); flex: 0 0 5.5em; }
+      .bs-detail-col { display: none; }
+      .bs-truncate { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mb-container">
+    <h1 data-i18n="bookSource.title">书源</h1>
+
+    <div class="bs-tabs" role="tablist">
+      <button id="tab-search" class="bs-tab" type="button" role="tab" data-tab="search" aria-selected="true">
+        <span class="mb-icon" data-icon="search"></span><span data-i18n="bookSource.tabSearch">搜索下载</span>
+      </button>
+      <button id="tab-sources" class="bs-tab" type="button" role="tab" data-tab="sources" aria-selected="false">
+        <span class="mb-icon" data-icon="book"></span><span data-i18n="bookSource.tabSources">书源管理</span>
+      </button>
+    </div>
+
+    <div id="deps-warning" class="mb-alert mb-alert--warning" hidden></div>
+
+    <!-- ═══ 标签页：搜索下载 ═══ -->
+    <section id="pane-search">
+      <div class="mb-card bs-card">
+        <div class="bs-card-title" data-i18n="bookSource.searchTitle">搜索下载</div>
+        <hr class="mb-divider" />
+        <div class="mb-row">
+          <div class="mb-col">
+            <input id="keyword" class="mb-input" type="text" autocomplete="off"
+                   data-i18n-attr="placeholder:bookSource.keywordLabel" />
+          </div>
+          <div class="mb-col mb-col--auto">
+            <button id="search-btn" class="mb-btn" type="button" disabled>
+              <span class="mb-icon" data-icon="search"></span><span data-i18n="bookSource.searchBtn">搜索</span>
+            </button>
+          </div>
+        </div>
+        <p id="search-hint" class="bs-hint"></p>
+      </div>
+
+      <div id="results-card" class="mb-card bs-card" hidden>
+        <div class="bs-card-title">
+          <span><span data-i18n="bookSource.resultTitle">搜索结果</span> (<span id="result-count">0</span>)</span>
+          <span class="mb-spacer"></span>
+          <button id="download-all-btn" class="mb-btn mb-btn--success mb-btn--small" type="button">
+            <span class="mb-icon" data-icon="download"></span><span data-i18n="bookSource.downloadAll">批量下载</span>
+          </button>
+        </div>
+        <hr class="mb-divider" />
+        <div class="bs-table-wrap">
+          <table class="bs-table">
+            <thead>
+              <tr>
+                <th class="bs-c-center" data-i18n="bookSource.colCover">封面</th>
+                <th data-i18n="bookSource.colName">书名</th>
+                <th data-i18n="bookSource.colAuthor">作者</th>
+                <th data-i18n="bookSource.colSource">来源</th>
+                <th data-i18n="bookSource.colLastChapter">最新章节</th>
+                <th class="bs-c-center" data-i18n="bookSource.colAction">操作</th>
+              </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+        <div id="pager" class="bs-pager" hidden></div>
+      </div>
+
+      <div id="tasks-card" class="mb-card bs-card" hidden>
+        <div class="bs-card-title" data-i18n="bookSource.taskTitle">任务</div>
+        <hr class="mb-divider" />
+        <div id="tasks-body"></div>
+      </div>
+    </section>
+
+    <!-- ═══ 标签页：书源管理 ═══ -->
+    <section id="pane-sources" hidden>
+      <div class="mb-row">
+        <div class="mb-col bs-source-col">
+          <div class="mb-card bs-card">
+            <div class="bs-card-title">
+              <span data-i18n="bookSource.sourceList">书源列表</span>
+              <span class="mb-spacer"></span>
+              <span class="mb-chip"><span id="source-count">0</span><span data-i18n="bookSource.countUnit">个</span></span>
+            </div>
+            <hr class="mb-divider" />
+            <input id="source-filter" class="mb-input" type="text" autocomplete="off"
+                   data-i18n-attr="placeholder:bookSource.filterPlaceholder" />
+            <div class="bs-toolbar">
+              <button id="refresh-btn" class="mb-btn mb-btn--secondary mb-btn--small" type="button">
+                <span class="mb-icon" data-icon="refresh"></span><span data-i18n="bookSource.refresh">刷新</span>
+              </button>
+              <button id="add-btn" class="mb-btn mb-btn--small" type="button">
+                <span class="mb-icon" data-icon="plus"></span><span data-i18n="bookSource.add">添加</span>
+              </button>
+              <button id="zip-btn" class="mb-btn mb-btn--secondary mb-btn--small" type="button">
+                <span class="mb-icon" data-icon="zip"></span><span data-i18n="bookSource.importZip">从 ZIP 导入</span>
+              </button>
+              <button id="url-toggle-btn" class="mb-btn mb-btn--secondary mb-btn--small" type="button">
+                <span class="mb-icon" data-icon="globe"></span><span data-i18n="bookSource.importUrl">从网址导入</span>
+              </button>
+              <input id="zip-input" class="mb-file-input__native" type="file" accept=".zip" />
+            </div>
+            <div id="import-url-row" class="bs-toolbar" hidden>
+              <input id="import-url" class="mb-input" type="text" autocomplete="off"
+                     data-i18n-attr="placeholder:bookSource.importUrlPlaceholder" />
+              <button id="import-url-btn" class="mb-btn mb-btn--small" type="button" data-i18n="bookSource.importBtn">导入</button>
+            </div>
+            <div id="source-list" class="bs-source-list"></div>
+            <p id="source-empty" class="bs-empty"></p>
+          </div>
+        </div>
+        <div class="mb-col bs-detail-col">
+          <div class="mb-card bs-card">
+            <div class="bs-card-title" data-i18n="bookSource.sourceDetail">书源详情</div>
+            <hr class="mb-divider" />
+            <p class="bs-empty" data-i18n="bookSource.sourceDetailHint">查看书源规则与可用性</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ── 添加/编辑书源（JSON 粘贴） ── -->
+  <div id="dlg-edit" class="mb-dialog-overlay" hidden>
+    <div class="mb-dialog">
+      <div class="mb-dialog-head">
+        <h3><span id="edit-title" data-i18n="bookSource.addTitle">新增书源</span></h3>
+      </div>
+      <div class="bs-dialog-body">
+        <p class="bs-hint" data-i18n="bookSource.pasteJsonHint">将书源 JSON 粘贴到下方编辑器</p>
+        <textarea id="edit-json" class="mb-textarea bs-mono bs-scroll" rows="18" spellcheck="false"
+                  data-i18n-attr="placeholder:bookSource.jsonPlaceholder"></textarea>
+        <div id="edit-error" class="mb-alert mb-alert--error" hidden></div>
+      </div>
+      <div class="bs-dialog-foot">
+        <button id="edit-cancel" class="mb-btn mb-btn--secondary" type="button" data-i18n="bookSource.cancel">取消</button>
+        <button id="edit-save" class="mb-btn" type="button" data-i18n="bookSource.save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 书源设置（JSON 编辑器 + 删除入口） ── -->
+  <div id="dlg-settings" class="mb-dialog-overlay" hidden>
+    <div class="mb-dialog">
+      <h3>
+        <span class="mb-icon" data-icon="cog"></span>
+        <span data-i18n="bookSource.settings">设置</span>: <span id="settings-name"></span>
+      </h3>
+      <div class="bs-dialog-body">
+        <p class="bs-hint" data-i18n="bookSource.jsonEditor">JSON 编辑器</p>
+        <textarea id="settings-json" class="mb-textarea bs-mono bs-scroll" rows="16" spellcheck="false"></textarea>
+        <div id="settings-error" class="mb-alert mb-alert--error" hidden></div>
+      </div>
+      <div class="bs-dialog-foot">
+        <button id="settings-delete" class="mb-btn mb-btn--error" type="button">
+          <span class="mb-icon" data-icon="trash"></span><span data-i18n="bookSource.delete">删除</span>
+        </button>
+        <button id="settings-close" class="mb-btn mb-btn--secondary" type="button" data-i18n="bookSource.close">关闭</button>
+        <button id="settings-apply" class="mb-btn" type="button" data-i18n="bookSource.applyJson">应用 JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 删除确认 ── -->
+  <div id="dlg-delete" class="mb-dialog-overlay" hidden>
+    <div class="mb-dialog mb-dialog--narrow">
+      <h3 data-i18n="bookSource.deleteTitle">删除书源</h3>
+      <p class="bs-dialog-body"><span data-i18n="bookSource.deleteConfirm">确定删除该书源？</span>「<b id="delete-name"></b>」</p>
+      <div class="bs-dialog-foot">
+        <button id="delete-cancel" class="mb-btn mb-btn--secondary" type="button" data-i18n="bookSource.cancel">取消</button>
+        <button id="delete-confirm" class="mb-btn mb-btn--error" type="button" data-i18n="bookSource.delete">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 批量下载确认 ── -->
+  <div id="dlg-confirm-all" class="mb-dialog-overlay" hidden>
+    <div class="mb-dialog mb-dialog--narrow">
+      <h3 data-i18n="bookSource.confirmDownloadAllTitle">确认批量下载</h3>
+      <p id="confirm-all-msg" class="bs-dialog-body"></p>
+      <div class="bs-dialog-foot">
+        <button id="confirm-all-cancel" class="mb-btn mb-btn--secondary" type="button" data-i18n="bookSource.cancel">取消</button>
+        <button id="confirm-all-ok" class="mb-btn" type="button" data-i18n="bookSource.downloadAll">批量下载</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 单源测试结果 ── -->
+  <div id="dlg-test" class="mb-dialog-overlay" hidden>
+    <div class="mb-dialog">
+      <h3><span data-i18n="bookSource.testResultTitle">测试结果</span>: <span id="test-name"></span></h3>
+      <div class="bs-dialog-body">
+        <div id="test-alert" class="mb-alert"></div>
+        <div class="bs-table-wrap">
+          <table class="bs-table">
+            <thead>
+              <tr>
+                <th data-i18n="bookSource.colName">书名</th>
+                <th data-i18n="bookSource.colAuthor">作者</th>
+              </tr>
+            </thead>
+            <tbody id="test-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="bs-dialog-foot">
+        <button id="test-close" class="mb-btn mb-btn--secondary" type="button" data-i18n="bookSource.close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- bridge 由宿主提供（iframe 内 src 指向宿主 /static/）；lib/i18n.js 是脚手架自带的字串胶水 -->
+  <script src="/static/toolbox-bridge.js"></script>
+  <script src="lib/i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

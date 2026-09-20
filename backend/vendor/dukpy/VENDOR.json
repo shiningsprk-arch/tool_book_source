@@ -1,0 +1,407 @@
+{
+  "package": "dukpy",
+  "version": "0.6.0",
+  "license": "MIT",
+  "homepage": "https://github.com/amol-/dukpy",
+  "what": "Legado 书源 @js: 规则用的 JS 引擎（Duktape）；引擎里的 js_runtime 只用 JSInterpreter",
+  "pruned": [
+    "dukpy/jsmodules/"
+  ],
+  "pruned_reason": "jsmodules/ 里的 TypeScript/Babel/React 编译器只被 dukpy 的 jsx_compile / typescript_compile / less_compile 惰性读取（各平台约 10.8 MB），引擎从不调用，裁掉后每个平台只剩原生模块 + ~50 KB 纯 Python",
+  "select_by": "cp<major><minor>-<platform>_<machine>（见 backend/dukpy_vendor.py）",
+  "platforms": {
+    "cp312-linux_x86_64": {
+      "wheel": "dukpy-0.6.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "wheel_sha256": "e5e82526ec28a24746e52962385787dd881966583aa53354052283a44031867c",
+      "wheel_size": 4290496,
+      "native": "dukpy/_dukpy.cpython-312-x86_64-linux-gnu.so",
+      "native_sha256": "91e2ee53165fbe5d16636fd19c3f66ec57d47d26f60f625358fc476f838a2e7b",
+      "files": [
+        {
+          "path": "_meta/LICENSE",
+          "size": 1085,
+          "sha256": "95b0e1040e7096c36730ef150b05f5adad0c9be439678e804ca9a974483f6480"
+        },
+        {
+          "path": "_meta/METADATA",
+          "size": 10503,
+          "sha256": "703ed646cb66b1088f42e1d9883a8e1a2e209279b27b22e8134e8188ff56b060"
+        },
+        {
+          "path": "dukpy/__init__.py",
+          "size": 394,
+          "sha256": "e1ed690e4a29393e98fffd0bc75887d796f6cbb94e1681b577f9b0e65cd3a4f1"
+        },
+        {
+          "path": "dukpy/_dukpy.cpython-312-x86_64-linux-gnu.so",
+          "size": 6407040,
+          "sha256": "91e2ee53165fbe5d16636fd19c3f66ec57d47d26f60f625358fc476f838a2e7b"
+        },
+        {
+          "path": "dukpy/babel.py",
+          "size": 672,
+          "sha256": "bc5d5b292d87a7c011e47f5c7de2df7a3aed8c182dba7a731e3b713291b077dd"
+        },
+        {
+          "path": "dukpy/cli.py",
+          "size": 298,
+          "sha256": "1ff21e201d54c813f6f269f4109f4de5ff971d06915eebf15cb4d83c928b7cbd"
+        },
+        {
+          "path": "dukpy/evaljs.py",
+          "size": 7566,
+          "sha256": "5a114f48628eecd05f8c0d1e5f626f7a2978edb1c9a422e896dce8b954c62405"
+        },
+        {
+          "path": "dukpy/install.py",
+          "size": 10529,
+          "sha256": "fc90115c3867c67676a0488b6e98dbdbb9b7c7aea5e17ccb247502126b5de799"
+        },
+        {
+          "path": "dukpy/jscore/fs.js",
+          "size": 891,
+          "sha256": "b1cfed17be05b21c92ab1bdb16c0fd57c20613de8413dc4372ee43e0c613d44d"
+        },
+        {
+          "path": "dukpy/jscore/path.js",
+          "size": 2484,
+          "sha256": "fed077d98f796fa02ffdafa4603fd7e9e2967dafb25681d1cfa8b4ccf4751614"
+        },
+        {
+          "path": "dukpy/jscore/punycode.js",
+          "size": 14490,
+          "sha256": "9a2f5fda3f08e05a80a4ee8e2e2893dec76278e03f4a3926bd698a12fa93b851"
+        },
+        {
+          "path": "dukpy/jscore/querystring.js",
+          "size": 9254,
+          "sha256": "fe2d6b8f77050b35b891eacd8d78c8939f8cc9705b684e5224f8807f3885f4c3"
+        },
+        {
+          "path": "dukpy/jscore/url.js",
+          "size": 28747,
+          "sha256": "63783a41268fd6cdfcb7083a9cc9c1cc56e4df9979656aecc034117d42d4bcee"
+        },
+        {
+          "path": "dukpy/jsruntime/commonjs_runtime.js",
+          "size": 3132,
+          "sha256": "ee7739316be4f0825b534eedd989627d6094faa46463846b98e65dc17defb185"
+        },
+        {
+          "path": "dukpy/jsruntime/console_runtime.js",
+          "size": 673,
+          "sha256": "a9fd61b0cc43d8e47953b7800da08c6a51062046f4aa93c55be5a07ec5904162"
+        },
+        {
+          "path": "dukpy/jsruntime/process_runtime.js",
+          "size": 203,
+          "sha256": "1912d5df4420080df85cec1f668c793ad41504afda06f1fcbd2119ea7101766a"
+        },
+        {
+          "path": "dukpy/lessc.py",
+          "size": 862,
+          "sha256": "0ab6a862420aa2602ba17590c1085b0f4ed2efbe7c10213a0560d2c0391bb5f4"
+        },
+        {
+          "path": "dukpy/module_loader.py",
+          "size": 7015,
+          "sha256": "b622fe62c6519a87977288ab6aa2918db5b98ef0e522885835dc7fea5502aab5"
+        },
+        {
+          "path": "dukpy/nodelike.py",
+          "size": 931,
+          "sha256": "6bb7ab59f6e3ec3ee00a9cd1222a282ffbf636d82cf90f01bc3d007633b16e48"
+        },
+        {
+          "path": "dukpy/tsc.py",
+          "size": 622,
+          "sha256": "8fa5796795fffd15e9f6865f75e475e1fc18c20ea866f6b3a79d9d697d8e8038"
+        },
+        {
+          "path": "dukpy/webassets/__init__.py",
+          "size": 177,
+          "sha256": "6fc10fb1b1fc27c53c21e73ab7e4a85b6445bd160d128a5b05814ceb7bdec03f"
+        },
+        {
+          "path": "dukpy/webassets/jsxfilter.py",
+          "size": 685,
+          "sha256": "3ec857b97ee5d79ad2af6cd4798971b41e39540456d1592632c899a0ba41e53b"
+        },
+        {
+          "path": "dukpy/webassets/lessfilter.py",
+          "size": 671,
+          "sha256": "1ab8162ba6186964b43cd223ee8802cc5d83dd87f29fe1df237df3f253d8c519"
+        },
+        {
+          "path": "dukpy/webassets/typescriptfilter.py",
+          "size": 348,
+          "sha256": "3ecb8b60e8d5cc7cf11460de8540b2778f1d612acdb79d12a89fff71fc49e4c3"
+        }
+      ],
+      "files_count": 24,
+      "installed_size": 6509272
+    },
+    "cp312-linux_aarch64": {
+      "wheel": "dukpy-0.6.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+      "wheel_sha256": "eab779d4c36c1d8964b4e8c49966858be63bf0daaac4f25469ee1ab7b2fbc592",
+      "wheel_size": 4210137,
+      "native": "dukpy/_dukpy.cpython-312-aarch64-linux-gnu.so",
+      "native_sha256": "30b5538c9de2a1dafac6918647de636ececab21b1a474c0f7fdcdccbcfcf9969",
+      "files": [
+        {
+          "path": "_meta/LICENSE",
+          "size": 1085,
+          "sha256": "95b0e1040e7096c36730ef150b05f5adad0c9be439678e804ca9a974483f6480"
+        },
+        {
+          "path": "_meta/METADATA",
+          "size": 10503,
+          "sha256": "703ed646cb66b1088f42e1d9883a8e1a2e209279b27b22e8134e8188ff56b060"
+        },
+        {
+          "path": "dukpy/__init__.py",
+          "size": 394,
+          "sha256": "e1ed690e4a29393e98fffd0bc75887d796f6cbb94e1681b577f9b0e65cd3a4f1"
+        },
+        {
+          "path": "dukpy/_dukpy.cpython-312-aarch64-linux-gnu.so",
+          "size": 6466304,
+          "sha256": "30b5538c9de2a1dafac6918647de636ececab21b1a474c0f7fdcdccbcfcf9969"
+        },
+        {
+          "path": "dukpy/babel.py",
+          "size": 672,
+          "sha256": "bc5d5b292d87a7c011e47f5c7de2df7a3aed8c182dba7a731e3b713291b077dd"
+        },
+        {
+          "path": "dukpy/cli.py",
+          "size": 298,
+          "sha256": "1ff21e201d54c813f6f269f4109f4de5ff971d06915eebf15cb4d83c928b7cbd"
+        },
+        {
+          "path": "dukpy/evaljs.py",
+          "size": 7566,
+          "sha256": "5a114f48628eecd05f8c0d1e5f626f7a2978edb1c9a422e896dce8b954c62405"
+        },
+        {
+          "path": "dukpy/install.py",
+          "size": 10529,
+          "sha256": "fc90115c3867c67676a0488b6e98dbdbb9b7c7aea5e17ccb247502126b5de799"
+        },
+        {
+          "path": "dukpy/jscore/fs.js",
+          "size": 891,
+          "sha256": "b1cfed17be05b21c92ab1bdb16c0fd57c20613de8413dc4372ee43e0c613d44d"
+        },
+        {
+          "path": "dukpy/jscore/path.js",
+          "size": 2484,
+          "sha256": "fed077d98f796fa02ffdafa4603fd7e9e2967dafb25681d1cfa8b4ccf4751614"
+        },
+        {
+          "path": "dukpy/jscore/punycode.js",
+          "size": 14490,
+          "sha256": "9a2f5fda3f08e05a80a4ee8e2e2893dec76278e03f4a3926bd698a12fa93b851"
+        },
+        {
+          "path": "dukpy/jscore/querystring.js",
+          "size": 9254,
+          "sha256": "fe2d6b8f77050b35b891eacd8d78c8939f8cc9705b684e5224f8807f3885f4c3"
+        },
+        {
+          "path": "dukpy/jscore/url.js",
+          "size": 28747,
+          "sha256": "63783a41268fd6cdfcb7083a9cc9c1cc56e4df9979656aecc034117d42d4bcee"
+        },
+        {
+          "path": "dukpy/jsruntime/commonjs_runtime.js",
+          "size": 3132,
+          "sha256": "ee7739316be4f0825b534eedd989627d6094faa46463846b98e65dc17defb185"
+        },
+        {
+          "path": "dukpy/jsruntime/console_runtime.js",
+          "size": 673,
+          "sha256": "a9fd61b0cc43d8e47953b7800da08c6a51062046f4aa93c55be5a07ec5904162"
+        },
+        {
+          "path": "dukpy/jsruntime/process_runtime.js",
+          "size": 203,
+          "sha256": "1912d5df4420080df85cec1f668c793ad41504afda06f1fcbd2119ea7101766a"
+        },
+        {
+          "path": "dukpy/lessc.py",
+          "size": 862,
+          "sha256": "0ab6a862420aa2602ba17590c1085b0f4ed2efbe7c10213a0560d2c0391bb5f4"
+        },
+        {
+          "path": "dukpy/module_loader.py",
+          "size": 7015,
+          "sha256": "b622fe62c6519a87977288ab6aa2918db5b98ef0e522885835dc7fea5502aab5"
+        },
+        {
+          "path": "dukpy/nodelike.py",
+          "size": 931,
+          "sha256": "6bb7ab59f6e3ec3ee00a9cd1222a282ffbf636d82cf90f01bc3d007633b16e48"
+        },
+        {
+          "path": "dukpy/tsc.py",
+          "size": 622,
+          "sha256": "8fa5796795fffd15e9f6865f75e475e1fc18c20ea866f6b3a79d9d697d8e8038"
+        },
+        {
+          "path": "dukpy/webassets/__init__.py",
+          "size": 177,
+          "sha256": "6fc10fb1b1fc27c53c21e73ab7e4a85b6445bd160d128a5b05814ceb7bdec03f"
+        },
+        {
+          "path": "dukpy/webassets/jsxfilter.py",
+          "size": 685,
+          "sha256": "3ec857b97ee5d79ad2af6cd4798971b41e39540456d1592632c899a0ba41e53b"
+        },
+        {
+          "path": "dukpy/webassets/lessfilter.py",
+          "size": 671,
+          "sha256": "1ab8162ba6186964b43cd223ee8802cc5d83dd87f29fe1df237df3f253d8c519"
+        },
+        {
+          "path": "dukpy/webassets/typescriptfilter.py",
+          "size": 348,
+          "sha256": "3ecb8b60e8d5cc7cf11460de8540b2778f1d612acdb79d12a89fff71fc49e4c3"
+        }
+      ],
+      "files_count": 24,
+      "installed_size": 6568536
+    },
+    "cp312-win_amd64": {
+      "wheel": "dukpy-0.6.0-cp312-cp312-win_amd64.whl",
+      "wheel_sha256": "bfd6f3764e3acf5ddf2e616d7cb5f2f8f1be158dbf6a3f6ae9b34a2bb1e0387a",
+      "wheel_size": 2615374,
+      "native": "dukpy/_dukpy.cp312-win_amd64.pyd",
+      "native_sha256": "8d9b31f00455fda6b6ba04dae04012dfd1db0b401f3030bfb78226c96dd8a23a",
+      "files": [
+        {
+          "path": "_meta/LICENSE",
+          "size": 1085,
+          "sha256": "95b0e1040e7096c36730ef150b05f5adad0c9be439678e804ca9a974483f6480"
+        },
+        {
+          "path": "_meta/METADATA",
+          "size": 10503,
+          "sha256": "703ed646cb66b1088f42e1d9883a8e1a2e209279b27b22e8134e8188ff56b060"
+        },
+        {
+          "path": "dukpy/__init__.py",
+          "size": 394,
+          "sha256": "e1ed690e4a29393e98fffd0bc75887d796f6cbb94e1681b577f9b0e65cd3a4f1"
+        },
+        {
+          "path": "dukpy/_dukpy.cp312-win_amd64.pyd",
+          "size": 885248,
+          "sha256": "8d9b31f00455fda6b6ba04dae04012dfd1db0b401f3030bfb78226c96dd8a23a"
+        },
+        {
+          "path": "dukpy/babel.py",
+          "size": 672,
+          "sha256": "bc5d5b292d87a7c011e47f5c7de2df7a3aed8c182dba7a731e3b713291b077dd"
+        },
+        {
+          "path": "dukpy/cli.py",
+          "size": 298,
+          "sha256": "1ff21e201d54c813f6f269f4109f4de5ff971d06915eebf15cb4d83c928b7cbd"
+        },
+        {
+          "path": "dukpy/evaljs.py",
+          "size": 7566,
+          "sha256": "5a114f48628eecd05f8c0d1e5f626f7a2978edb1c9a422e896dce8b954c62405"
+        },
+        {
+          "path": "dukpy/install.py",
+          "size": 10529,
+          "sha256": "fc90115c3867c67676a0488b6e98dbdbb9b7c7aea5e17ccb247502126b5de799"
+        },
+        {
+          "path": "dukpy/jscore/fs.js",
+          "size": 891,
+          "sha256": "b1cfed17be05b21c92ab1bdb16c0fd57c20613de8413dc4372ee43e0c613d44d"
+        },
+        {
+          "path": "dukpy/jscore/path.js",
+          "size": 2484,
+          "sha256": "fed077d98f796fa02ffdafa4603fd7e9e2967dafb25681d1cfa8b4ccf4751614"
+        },
+        {
+          "path": "dukpy/jscore/punycode.js",
+          "size": 14490,
+          "sha256": "9a2f5fda3f08e05a80a4ee8e2e2893dec76278e03f4a3926bd698a12fa93b851"
+        },
+        {
+          "path": "dukpy/jscore/querystring.js",
+          "size": 9254,
+          "sha256": "fe2d6b8f77050b35b891eacd8d78c8939f8cc9705b684e5224f8807f3885f4c3"
+        },
+        {
+          "path": "dukpy/jscore/url.js",
+          "size": 28747,
+          "sha256": "63783a41268fd6cdfcb7083a9cc9c1cc56e4df9979656aecc034117d42d4bcee"
+        },
+        {
+          "path": "dukpy/jsruntime/commonjs_runtime.js",
+          "size": 3132,
+          "sha256": "ee7739316be4f0825b534eedd989627d6094faa46463846b98e65dc17defb185"
+        },
+        {
+          "path": "dukpy/jsruntime/console_runtime.js",
+          "size": 673,
+          "sha256": "a9fd61b0cc43d8e47953b7800da08c6a51062046f4aa93c55be5a07ec5904162"
+        },
+        {
+          "path": "dukpy/jsruntime/process_runtime.js",
+          "size": 203,
+          "sha256": "1912d5df4420080df85cec1f668c793ad41504afda06f1fcbd2119ea7101766a"
+        },
+        {
+          "path": "dukpy/lessc.py",
+          "size": 862,
+          "sha256": "0ab6a862420aa2602ba17590c1085b0f4ed2efbe7c10213a0560d2c0391bb5f4"
+        },
+        {
+          "path": "dukpy/module_loader.py",
+          "size": 7015,
+          "sha256": "b622fe62c6519a87977288ab6aa2918db5b98ef0e522885835dc7fea5502aab5"
+        },
+        {
+          "path": "dukpy/nodelike.py",
+          "size": 931,
+          "sha256": "6bb7ab59f6e3ec3ee00a9cd1222a282ffbf636d82cf90f01bc3d007633b16e48"
+        },
+        {
+          "path": "dukpy/tsc.py",
+          "size": 622,
+          "sha256": "8fa5796795fffd15e9f6865f75e475e1fc18c20ea866f6b3a79d9d697d8e8038"
+        },
+        {
+          "path": "dukpy/webassets/__init__.py",
+          "size": 177,
+          "sha256": "6fc10fb1b1fc27c53c21e73ab7e4a85b6445bd160d128a5b05814ceb7bdec03f"
+        },
+        {
+          "path": "dukpy/webassets/jsxfilter.py",
+          "size": 685,
+          "sha256": "3ec857b97ee5d79ad2af6cd4798971b41e39540456d1592632c899a0ba41e53b"
+        },
+        {
+          "path": "dukpy/webassets/lessfilter.py",
+          "size": 671,
+          "sha256": "1ab8162ba6186964b43cd223ee8802cc5d83dd87f29fe1df237df3f253d8c519"
+        },
+        {
+          "path": "dukpy/webassets/typescriptfilter.py",
+          "size": 348,
+          "sha256": "3ecb8b60e8d5cc7cf11460de8540b2778f1d612acdb79d12a89fff71fc49e4c3"
+        }
+      ],
+      "files_count": 24,
+      "installed_size": 987480
+    }
+  }
+}

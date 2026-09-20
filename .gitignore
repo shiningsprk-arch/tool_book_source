@@ -1,9 +1,12 @@
 __pycache__/
 *.pyc
-build/
+*.pyo
+.pytest_cache/
 dist/
-talebook_build/
-*.exe
-*.zip
-fetched_source.json
-repo/
+.tox/
+.venv/
+# 本机自测用：为当前解释器额外拉一份 dukpy 副本（见 tests/test_vendor.py）
+dev/vendor-extra/
+
+# make_icon.py --preview 的产物
+icon_preview_*.png

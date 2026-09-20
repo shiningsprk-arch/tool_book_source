@@ -1,0 +1,370 @@
+/**
+ * MyBooks Toolbox 工具前端 —— 轻量共享视觉基础
+ * @author: PoxenStudio, 2026-8
+ *
+ * 不引入 Vuetify、不是强制约定——只是一份纯 CSS 的颜色变量 + 几个基础组件 class，让不同工具
+ * 之间、以及跟宿主内置工具之间的观感更接近一些，同时保留"工具自选技术栈"的自由度：不想用就
+ * 整个删掉，或者只挑变量（--mb-color-*）部分接到自己的组件库上。
+ *
+ * 深浅色由宿主通过 toolbox-bridge.js 的 bridge.theme / bridge.onThemeChange 告知，页面据此
+ * 给 <body> 设置 data-theme="light" | "dark"（见 frontend/index.html 示例），本文件的变量
+ * 随之切换——不需要工具自己实现深浅色两套样式。
+ *
+ */
+
+:root {
+  --mb-color-bg: #ffffff;
+  --mb-color-surface: #f5f5f7;
+  --mb-color-text: #1a1a1a;
+  --mb-color-text-secondary: #5f6368;
+  --mb-color-border: #dcdde0;
+  --mb-color-primary: #1976d2;
+  --mb-color-primary-contrast: #ffffff;
+  --mb-color-success: #2e7d32;
+  --mb-color-error: #c62828;
+  --mb-color-warning: #ed6c02;
+  --mb-color-info: #0288d1;
+  --mb-radius: 6px;
+  --mb-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+/* 宿主/工具页面把 data-theme="dark" 设到 <body> 上时，覆盖上面的变量；子元素通过
+   CSS 变量继承自动拿到新值，不需要额外写一套深色规则。 */
+body[data-theme="dark"] {
+  --mb-color-bg: #121212;
+  --mb-color-surface: #1e1e1e;
+  --mb-color-text: #eaeaea;
+  --mb-color-text-secondary: #a0a0a0;
+  --mb-color-border: #3a3a3a;
+  --mb-color-primary: #64b5f6;
+  --mb-color-primary-contrast: #121212;
+  --mb-color-success: #66bb6a;
+  --mb-color-error: #ef5350;
+  --mb-color-warning: #ffa726;
+  --mb-color-info: #4fc3f7;
+}
+
+body {
+  margin: 24px;
+  font-family: var(--mb-font);
+  background: var(--mb-color-bg);
+  color: var(--mb-color-text);
+}
+
+.mb-card {
+  background: var(--mb-color-surface);
+  border: 1px solid var(--mb-color-border);
+  border-radius: var(--mb-radius);
+  padding: 16px;
+}
+
+.mb-text-secondary {
+  color: var(--mb-color-text-secondary);
+}
+
+.mb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--mb-radius);
+  background: var(--mb-color-primary);
+  color: var(--mb-color-primary-contrast);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.mb-btn:hover {
+  opacity: 0.88;
+}
+.mb-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mb-btn--secondary {
+  background: transparent;
+  color: var(--mb-color-primary);
+  border: 1px solid var(--mb-color-primary);
+}
+
+.mb-input,
+.mb-select,
+.mb-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--mb-color-text);
+  background: var(--mb-color-bg);
+  border: 1px solid var(--mb-color-border);
+  border-radius: var(--mb-radius);
+  box-sizing: border-box;
+}
+.mb-input:focus,
+.mb-select:focus,
+.mb-textarea:focus {
+  outline: none;
+  border-color: var(--mb-color-primary);
+}
+
+.mb-pre {
+  background: var(--mb-color-surface);
+  border: 1px solid var(--mb-color-border);
+  border-radius: var(--mb-radius);
+  padding: 12px;
+  overflow: auto;
+  color: var(--mb-color-text);
+}
+
+.mb-status--success {
+  color: var(--mb-color-success);
+}
+.mb-status--error {
+  color: var(--mb-color-error);
+}
+.mb-status--warning {
+  color: var(--mb-color-warning);
+}
+.mb-status--info {
+  color: var(--mb-color-info);
+}
+
+/* ---------------------------------------------------------------------
+ * 以下这组 class 是对现有 14 个内置工具（app/src/pages/toolbox/*.vue，Vuetify 组件）
+ * 里出现频率较高的元素类型的轻量覆盖（v-alert / v-chip / v-list-item / v-progress-* /
+ * v-divider / v-dialog / v-row/v-col 等），供新工具想要接近的观感时对应着用；不是照抄
+ * Vuetify 的实现细节，只覆盖到"看起来是同一类元素"的程度。
+ * ------------------------------------------------------------------- */
+
+/* 简易 flex 布局，对应 v-container / v-row / v-col / v-spacer，用不到 12 栏栅格系统时够用 */
+.mb-container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+.mb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.mb-row--center {
+  align-items: center;
+}
+.mb-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.mb-col--auto {
+  flex: 0 0 auto;
+}
+.mb-spacer {
+  flex: 1 1 auto;
+}
+
+/* 对应 v-alert */
+.mb-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--mb-radius);
+  border: 1px solid var(--mb-color-border);
+  background: var(--mb-color-surface);
+  color: var(--mb-color-text);
+}
+.mb-alert--success {
+  border-color: var(--mb-color-success);
+  color: var(--mb-color-success);
+}
+.mb-alert--error {
+  border-color: var(--mb-color-error);
+  color: var(--mb-color-error);
+}
+.mb-alert--warning {
+  border-color: var(--mb-color-warning);
+  color: var(--mb-color-warning);
+}
+.mb-alert--info {
+  border-color: var(--mb-color-info);
+  color: var(--mb-color-info);
+}
+
+/* 对应 v-chip */
+.mb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.85em;
+  background: var(--mb-color-surface);
+  border: 1px solid var(--mb-color-border);
+  color: var(--mb-color-text);
+}
+.mb-chip--primary {
+  background: var(--mb-color-primary);
+  border-color: var(--mb-color-primary);
+  color: var(--mb-color-primary-contrast);
+}
+
+/* 对应 v-divider */
+.mb-divider {
+  border: none;
+  border-top: 1px solid var(--mb-color-border);
+  margin: 12px 0;
+}
+
+/* 对应 v-list / v-list-item（含 avatar/title/subtitle/action 几个子位置） */
+.mb-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--mb-color-border);
+}
+.mb-list-item:last-child {
+  border-bottom: none;
+}
+.mb-list-item__avatar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--mb-color-surface);
+}
+.mb-list-item__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mb-list-item__content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.mb-list-item__title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mb-list-item__subtitle {
+  color: var(--mb-color-text-secondary);
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mb-list-item__action {
+  flex: 0 0 auto;
+}
+
+/* 对应 v-progress-linear */
+.mb-progress-linear {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--mb-color-border);
+  overflow: hidden;
+}
+.mb-progress-linear__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: var(--mb-color-primary);
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+/* 不定进度：没有百分比时加这个 modifier class，走一段循环动画 */
+.mb-progress-linear--indeterminate .mb-progress-linear__bar {
+  width: 40% !important;
+  animation: mb-progress-indeterminate 1.2s ease-in-out infinite;
+}
+@keyframes mb-progress-indeterminate {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* 对应 v-progress-circular（纯 CSS 环形 spinner，用于不定进度） */
+.mb-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--mb-color-border);
+  border-top-color: var(--mb-color-primary);
+  border-radius: 50%;
+  animation: mb-spin 0.8s linear infinite;
+}
+@keyframes mb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 对应 v-checkbox / v-radio / v-switch —— 直接用原生控件 + accent-color 跟主题色对齐，
+   不重新画一套控件样式；.mb-field 只是给"控件 + 文字标签"这个常见布局一点间距 */
+.mb-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mb-field input[type='checkbox'],
+.mb-field input[type='radio'] {
+  accent-color: var(--mb-color-primary);
+  width: 16px;
+  height: 16px;
+}
+.mb-switch {
+  accent-color: var(--mb-color-primary);
+}
+
+/* 对应 v-dialog：一个居中的遮罩浮层，工具自己控制显示/隐藏（加/去掉这个 class 或用
+   hidden 属性），不内置任何 JS 行为 */
+.mb-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.mb-dialog {
+  background: var(--mb-color-bg);
+  border-radius: var(--mb-radius);
+  padding: 20px;
+  max-width: 480px;
+  width: calc(100% - 32px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* 对应 v-file-input：原生 file input 丑陋且难跟主题统一，包一层触发按钮外观，真正的
+   <input type="file"> 用 .mb-file-input__native 藏起来，点按钮触发它 */
+.mb-file-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mb-file-input__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+/* 对应 v-icon：不内置图标字体（4.7 节明确不纳入范围），只给"自带 SVG/图片图标"的工具一个
+   跟文字对齐、按字号缩放的容器，用法：<span class="mb-icon"><svg>...</svg></span> */
+.mb-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+}

@@ -1,0 +1,21 @@
+# 换行符 / 文本属性
+#
+# 为什么需要这个文件：`scripts/build.py` 打出来的 zip 是"固定时间戳 + 稳定排序"的**确定性**
+# 产物，sha256 会被记进变更记录、商店登记、以及 backend/vendor/dukpy/VENDOR.json 的哈希清单。
+# 只要换行符因平台而异（本机 git 默认 core.autocrlf=true），同一个 commit 在不同机器上就
+# 会打出**不同的哈希**，清单校验也会假失败。
+#
+# 规则：
+#   - 所有文本文件统一 LF（含 checkout，`eol=lf` 保证 Windows 上拉下来也是 LF）；
+#   - 原生扩展 / 图片 / 归档一律当二进制，绝不碰 —— dukpy 的 .so/.pyd 必须与 PyPI wheel
+#     逐字节一致，VENDOR.json 里的 sha256 才对得上。
+* text=auto eol=lf
+
+*.so   -text
+*.pyd  -text
+*.dll  -text
+*.png  -text
+*.jpg  -text
+*.ico  -text
+*.zip  -text
+*.7z   -text
