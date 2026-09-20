@@ -1,0 +1,56 @@
+name: CI
+
+# 为什么特意用 Python 3.12：MyBooks 官方 Docker 镜像（ubuntu:24.04 的系统 python3）就是 cp312
+# （见宿主 Dockerfile.base 与 prebuilt/ 里的 cp312 wheel）。在 3.12 上跑，`backend/vendor/dukpy/`
+# 里那份 `cp312-linux_x86_64` 副本才会被真正选中并加载 —— 这就是"随包依赖在目标平台上确实能用"
+# 的机器验证，本机开发环境（Windows / 其它 ABI）补不上这一环。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装宿主侧依赖（MyBooks 自带的那些）
+        # 故意**不装 dukpy**：宿主 requirements.txt 里没有它，工具包靠内置副本兜底。
+        # 不装，才能真正测到内置副本那条路（test_vendor 里那条"真加载"用例会在 cp312 上执行）。
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest requests beautifulsoup4 lxml chardet EbookLib
+
+      - name: 校验随包 dukpy 副本（sha256 清单 + 文件清单，离线）
+        run: python scripts/fetch_vendor_wheels.py --check
+
+      - name: 单元测试
+        run: python -m pytest tests -q
+
+      - name: 打包并检查确定性（两次打包必须字节相同）
+        run: |
+          python scripts/build.py --no-mytool
+          cp dist/book_source-1.2.0.zip /tmp/first.zip
+          python scripts/build.py --no-mytool
+          sha256sum dist/*.zip
+          cmp /tmp/first.zip dist/book_source-1.2.0.zip && echo "确定性 OK：两次打包字节相同"
+
+      - name: 官方脚手架校验（mytool validate）
+        # 这是"符合 MyBooks 规范"的那道门禁：官方 tools_builder 的 validate 与宿主
+        # toolbox_manager.validate_manifest() 走同一套规则。
+        run: |
+          git clone --depth 1 https://github.com/PoxenStudio/tools_builder /tmp/tools_builder
+          cd /tmp/tools_builder && npm ci --no-audit --no-fund
+          node /tmp/tools_builder/bin/mytool.js validate "$GITHUB_WORKSPACE"/dist/*.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: book_source-zip
+          path: dist/*.zip
+          if-no-files-found: error
