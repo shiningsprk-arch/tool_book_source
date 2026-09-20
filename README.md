@@ -139,6 +139,20 @@ python scripts/build.py --no-vendor             # 不带内置 dukpy 的精简�
 `scripts/build.py` 打完包会把产物交给官方脚手架再校验一遍
 （`node ../tools_builder/bin/mytool.js validate dist/*.zip`），"符合规范"以那一步通过为准。
 
+## 发布产物与可复现构建
+
+- 可直接安装的包在 [Release v1.2.0](https://github.com/shiningsprk-arch/tool_book_source/releases/tag/v1.2.0)：
+  `book_source-1.2.0.zip`（4.7 MB / 96 条目，sha256 `5276c18e…`）。CI 每次跑完也会把它作为
+  artifact 上传。
+- **构建可复现**：同一个 commit 在 Windows/cp313 与 ubuntu/cp312 上执行
+  `python scripts/build.py`，打出来的字节完全相同。做法是固定掉所有会变的字段：时间戳（取
+  `manifest.publish_date`）、条目顺序、权限位，以及 zip 头里那个跟平台相关的 "version made by"
+  宿主字段（`ZipInfo.create_system`，不固定就是 Windows=0/DOS、Linux=3/UNIX 的差别 —— 这一条
+  是拿 CI 产物和本机产物逐字节比对才发现的）。所以仓库/Release 里记的 sha256 在哪儿构建都成立。
+- CI（`.github/workflows/ci.yml`）跑在 **cp312 的 Linux runner** 上（对齐 MyBooks 官方镜像的
+  系统 python3），并且**故意不装 dukpy**，好让 `backend/vendor/dukpy/cp312-linux_x86_64` 被真正
+  选中、真正加载 —— 本机开发环境（Windows/其它 ABI）补不上这一环。
+
 ## 相对上游的行为差异
 
 完整说明见 [NOTICE.md](NOTICE.md)，要点：
