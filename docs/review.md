@@ -82,6 +82,10 @@ handler 类真实存在，`tests/test_frontend_contract.py` 双向检查"前端�
   2s 轮询 `/progress`；按钮在请求期间禁用防重复提交（`downloadingMap` / `generatingMap`），
   同时只允许一个活动任务（`state.activeTask` 门闩，与后端 `is_running()` 的单任务语义一致）。
 - 每条 handler 都有 docstring 说明用途、方法、参数与（破坏性的）语义，可替代单独的接口文档。
+- `import_zip` / `import_url` 的结果**如实**上报（`_import_response()`）：成功带
+  `新增 X / 更新 Y / 跳过 Z` 计数；识别不到书源数据回 `book_source.import_failed` +
+  "压缩包里没找到书源数据（看过：…）"；一条都没进来（例如全依赖 `<js>` 规则）也回失败。
+  以前这两种都走"导入成功，新增 0 个书源"——看着成功、实际什么都没发生。
 
 ## c. 接口是否存在安全问题
 
@@ -190,6 +194,12 @@ handler 类真实存在，`tests/test_frontend_contract.py` 双向检查"前端�
     异常路径不会留下半截文件（`os.replace` 之前失败则原文件不动）。
   - ⚠️ 生成 EPUB 的产物**不自动清理**——它就是要给用户下载的。上游也没有 TTL 回收，
     本工具包沿用该行为（把"要不要清"留给用户，或后续加一个手动清理入口）。
+- **导入的写入次数**：`_import_items()` 在内存里合并、整包只 `_save_sources()` 一次（仍在
+  `_sources_lock` 下），不是逐条"读全量→改→写全量"。原先逐条 `add_source()` 在真实书源包上
+  会退化成 O(n²)：实测 800 条 23 秒、2973 条超过 5 分钟；改完 3287 条 0.79 秒。
+- **导入的来源文件按内容识别**：扫 zip 里所有 `.json`/`.txt`，用 `_looks_like_sources()`
+  按结构判断（有 `bookSourceName` + `bookSourceUrl`），无关 JSON 只记录"跳过 — 不是书源数据"，
+  不会误当成书源；`importBookSource.*` 排最后处理，同名书源以它为准。
 - **清理逻辑**：下载入库后 `finally: self.cleanup_work_dir(os.path.dirname(epub_path))`
   ——成功与失败都清（`import_file` 默认 `delete_after_import=True`，副本已在书库）。
   清理本身用 `BaseTool.cleanup_work_dir()`（失败只记警告），工具没有自己另写一套。

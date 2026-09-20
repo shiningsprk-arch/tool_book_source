@@ -171,6 +171,11 @@ python scripts/build.py --no-vendor             # 不带内置 dukpy 的精简�
 6. **内置 dukpy**（上游走的是"往宿主 `requirements.txt` 加 `dukpy`"，外部工具做不到），
    所以 `@js:` 规则在 MyBooks 官方 Docker 镜像（Ubuntu 24.04 / CPython 3.12 / x86_64 与
    aarch64）上开箱可用。
+7. **书源包导入改成按内容识别 + 整批落盘**：上游只认 `importBookSource.json/.txt`（真实书源包
+   命名五花八门 → "导入成功，新增 0 个书源"），而且逐条 `add_source()` 是 O(n²)（800 条 23 秒、
+   2973 条 5 分钟以上）。现在扫 zip 里所有 `.json`/`.txt` 按结构判断、整包只落盘一次——
+   拿 `talebook-booksource-presets.zip`（3287 条 / 6 个文件）实测 **0.79 秒导入 2186 条**。
+   导入结果也如实上报：`导入完成：新增 X，更新 Y，跳过 Z`，一条都没进来时直接报错而不是"成功"。
 
 ## 已知限制
 

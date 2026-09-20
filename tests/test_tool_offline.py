@@ -500,5 +500,174 @@ class TestRouteWiring(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
 
+class TestImportRobustness(ToolTestCase):
+    """真实书源包长得什么样：文件名五花八门、动辄几千条、偶尔混着无关 JSON。
+
+    旧实现只认 `importBookSource.json`（认不到就静默 0 条）+ 逐条 `add_source()`（O(n²)），
+    这两个问题在真实预设包上会同时爆：要么"导入成功但一条没进来"，要么等几分钟。
+    """
+
+    def _zip(self, files):
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix=".zip")
+        os.close(fd)
+        with zipfile.ZipFile(path, "w") as zf:
+            for name, payload in files.items():
+                zf.writestr(name, payload if isinstance(payload, str)
+                            else json.dumps(payload, ensure_ascii=False))
+        self.addCleanup(os.unlink, path)
+        return path
+
+    def test_recognizes_files_by_content_not_name(self):
+        """talebook/legado 预设包叫 booksources.seed.json / xxx-legado-full.json 这类名字。"""
+        zip_path = self._zip(
+            {"booksources.seed.json": [_source("内容识别源")]})
+        result = tool.BookSourceTool().import_sources_from_zip(zip_path)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["added"], 1)
+        self.assertEqual(result["files"], ["booksources.seed.json"])
+
+    def test_skips_unrelated_json_and_says_why(self):
+        zip_path = self._zip({"config.json": {"theme": "dark"}, "sources.json": [_source("真源")]})
+        result = tool.BookSourceTool().import_sources_from_zip(zip_path)
+        self.assertEqual(result["added"], 1)
+        self.assertEqual(result["files"], ["sources.json"])
+        self.assertTrue(any("config.json" in e and "跳过" in e for e in result["errors"]),
+                        result["errors"])
+
+    def test_no_sources_reports_what_was_scanned(self):
+        zip_path = self._zip({"config.json": {"a": 1}, "README.md": "# hi"})
+        result = tool.BookSourceTool().import_sources_from_zip(zip_path)
+        self.assertEqual(result["status"], "no_sources")
+        self.assertIn("config.json", result["message"])
+        self.assertEqual(result["scanned"], ["config.json"])   # 只扫 .json/.txt
+
+    def test_legacy_filename_wins_on_duplicate(self):
+        """同名书源在两个文件里都有时，以 importBookSource.json 为准（与上游处理顺序一致）。"""
+        legacy = _source("同名源", url="https://legacy.example.com")
+        other = _source("同名源", url="https://other.example.com")
+        zip_path = self._zip({"zzz.json": [other], "importBookSource.json": [legacy]})
+        result = tool.BookSourceTool().import_sources_from_zip(zip_path)
+        self.assertEqual(result["added"], 1)
+        self.assertEqual(tool.BookSourceTool().list_sources()[0]["bookSourceUrl"],
+                         "https://legacy.example.com")
+
+    def test_duplicate_within_one_payload_counts_as_updated(self):
+        zip_path = self._zip({"s.json": [_source("同源", url="https://a.example.com"),
+                                         _source("同源", url="https://b.example.com")]})
+        result = tool.BookSourceTool().import_sources_from_zip(zip_path)
+        self.assertEqual((result["added"], result["updated"]), (1, 1))
+
+    def test_batched_single_write(self):
+        """整包只写一次盘（旧实现逐条 add_source 会读+写全量 n 次 → O(n²)）。"""
+        book_source = tool.BookSourceTool()
+        calls = []
+        real = book_source._save_sources
+
+        def spy(sources):
+            calls.append(len(sources))
+            return real(sources)
+
+        book_source._save_sources = spy
+        zip_path = self._zip({"importBookSource.json":
+                              [_source("源 %d" % i) for i in range(50)]})
+        result = book_source.import_sources_from_zip(zip_path)
+        self.assertEqual(result["added"], 50)
+        self.assertEqual(len(calls), 1, "整包应该只落盘一次，实际 %d 次" % len(calls))
+
+    def test_many_items_is_fast(self):
+        """1000 条要秒级完成（旧实现在 800 条时已经 23 秒，2973 条超过 5 分钟）。"""
+        import time
+        zip_path = self._zip({"importBookSource.json":
+                              [_source("源 %d" % i) for i in range(1000)]})
+        start = time.time()
+        result = tool.BookSourceTool().import_sources_from_zip(zip_path)
+        elapsed = time.time() - start
+        self.assertEqual(result["added"], 1000)
+        self.assertLess(elapsed, 5.0, "1000 条用了 %.1f 秒" % elapsed)
+
+    def test_broken_item_does_not_kill_the_pack(self):
+        import unittest.mock
+        good = _source("好源")
+        bad = _source("坏源")
+        zip_path = self._zip({"importBookSource.json": [bad, good]})
+        real = tool.BookSource.from_dict
+
+        def flaky(raw):
+            if raw.get("bookSourceName") == "坏源":
+                raise ValueError("模拟坏数据")
+            return real(raw)
+
+        with unittest.mock.patch.object(tool.BookSource, "from_dict", staticmethod(flaky)):
+            result = tool.BookSourceTool().import_sources_from_zip(zip_path)
+        self.assertEqual(result["added"], 1)
+        self.assertEqual([s["bookSourceName"] for s in tool.BookSourceTool().list_sources()],
+                         ["好源"])
+        self.assertTrue(any("坏源" in e for e in result["errors"]), result["errors"])
+
+    def test_looks_like_sources(self):
+        self.assertTrue(tool.BookSourceTool._looks_like_sources([_source("a")]))
+        self.assertTrue(tool.BookSourceTool._looks_like_sources(_source("a")))
+        self.assertFalse(tool.BookSourceTool._looks_like_sources({"theme": "dark"}))
+        self.assertFalse(tool.BookSourceTool._looks_like_sources([]))
+        self.assertFalse(tool.BookSourceTool._looks_like_sources(
+            [{"bookSourceName": "只有名字没有地址"}]))
+
+    def test_candidate_file_order(self):
+        """预设包先并入、importBookSource.* 最后；其余按路径排序（顺序即优先级，可复现）。"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("zzz.json", "importBookSource.json", "aaa.json", "notes.md", "b.txt"):
+                with open(os.path.join(tmp, name), "w", encoding="utf-8") as f:
+                    f.write("[]")
+            # importBookSource.json 排最后处理 → 同名书源由它说了算；非 .json/.txt 不参与
+            self.assertEqual(tool._candidate_source_files(tmp),
+                             ["aaa.json", "b.txt", "zzz.json", "importBookSource.json"])
+
+
+class TestImportHandlers(ToolTestCase):
+    """导入接口的响应文案：以前"没导进来"也回"导入成功，新增 0 个书源"。"""
+
+    def _zip_bytes(self, files):
+        import io as _io
+        buf = _io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            for name, payload in files.items():
+                zf.writestr(name, payload if isinstance(payload, str)
+                            else json.dumps(payload, ensure_ascii=False))
+        return buf.getvalue()
+
+    def _post_zip(self, body):
+        handler = tool.ImportZipHandler(
+            files={"file": [{"filename": "presets.zip", "body": body}]})
+        return handler.post()
+
+    def test_success_message_has_counts(self):
+        body = self._zip_bytes({"booksources.seed.json": [_source("源一"), _source("源二")]})
+        rsp = self._post_zip(body)
+        self.assertEqual(rsp["err"], "ok")
+        self.assertIn("新增 2", rsp["msg"])
+        self.assertEqual(rsp["data"]["files"], ["booksources.seed.json"])
+
+    def test_no_sources_is_an_error_not_success(self):
+        body = self._zip_bytes({"config.json": {"theme": "dark"}})
+        rsp = self._post_zip(body)
+        self.assertEqual(rsp["err"], "book_source.import_failed")
+        self.assertIn("config.json", rsp["msg"])
+        self.assertEqual(rsp["data"]["status"], "no_sources")
+
+    def test_all_skipped_is_an_error_not_success(self):
+        body = self._zip_bytes({"s.json": [_source("JS 源",
+                                                   searchUrl="@js:java.ajax('x')")]})
+        rsp = self._post_zip(body)
+        self.assertEqual(rsp["err"], "book_source.import_failed")
+        self.assertIn("跳过 1", rsp["msg"])
+
+    def test_bad_zip_reports_format_error(self):
+        rsp = self._post_zip(b"this is not a zip")
+        self.assertEqual(rsp["err"], "book_source.import_failed")
+        self.assertIn("zip", rsp["msg"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -2,7 +2,7 @@
   "tool_id": "book_source",
   "name": "书源引擎",
   "description": "Legado 3.0 兼容书源引擎：书源管理、多源搜索、正文抓取与 EPUB 生成",
-  "revision": "1.2.0",
+  "revision": "1.2.1",
   "author": "黏菌",
   "publish_date": "2026-09-20",
   "core_api_version": "1.3.0",
@@ -10,23 +10,72 @@
   "entry_frontend": "index.html",
   "page": "book_source",
   "repo_url": "https://github.com/shiningsprk-arch/tool_book_source",
-  "locales": ["zh", "en", "zh-TW"],
+  "locales": [
+    "zh",
+    "en",
+    "zh-TW"
+  ],
   "default_locale": "zh",
   "api_routes": [
-    { "path": "list", "handler": "tool.ListHandler" },
-    { "path": "save", "handler": "tool.SaveHandler" },
-    { "path": "toggle", "handler": "tool.ToggleHandler" },
-    { "path": "delete", "handler": "tool.DeleteHandler" },
-    { "path": "search_async", "handler": "tool.SearchAsyncHandler" },
-    { "path": "search_status", "handler": "tool.SearchStatusHandler" },
-    { "path": "test", "handler": "tool.TestHandler" },
-    { "path": "download", "handler": "tool.DownloadHandler" },
-    { "path": "generate_epub", "handler": "tool.GenerateEpubHandler" },
-    { "path": "cancel", "handler": "tool.CancelHandler" },
-    { "path": "progress", "handler": "tool.ProgressHandler" },
-    { "path": "import_zip", "handler": "tool.ImportZipHandler" },
-    { "path": "import_url", "handler": "tool.ImportUrlHandler" },
-    { "path": "download_epub", "handler": "tool.DownloadEpubHandler" },
-    { "path": "deps", "handler": "tool.DepsHandler" }
+    {
+      "path": "list",
+      "handler": "tool.ListHandler"
+    },
+    {
+      "path": "save",
+      "handler": "tool.SaveHandler"
+    },
+    {
+      "path": "toggle",
+      "handler": "tool.ToggleHandler"
+    },
+    {
+      "path": "delete",
+      "handler": "tool.DeleteHandler"
+    },
+    {
+      "path": "search_async",
+      "handler": "tool.SearchAsyncHandler"
+    },
+    {
+      "path": "search_status",
+      "handler": "tool.SearchStatusHandler"
+    },
+    {
+      "path": "test",
+      "handler": "tool.TestHandler"
+    },
+    {
+      "path": "download",
+      "handler": "tool.DownloadHandler"
+    },
+    {
+      "path": "generate_epub",
+      "handler": "tool.GenerateEpubHandler"
+    },
+    {
+      "path": "cancel",
+      "handler": "tool.CancelHandler"
+    },
+    {
+      "path": "progress",
+      "handler": "tool.ProgressHandler"
+    },
+    {
+      "path": "import_zip",
+      "handler": "tool.ImportZipHandler"
+    },
+    {
+      "path": "import_url",
+      "handler": "tool.ImportUrlHandler"
+    },
+    {
+      "path": "download_epub",
+      "handler": "tool.DownloadEpubHandler"
+    },
+    {
+      "path": "deps",
+      "handler": "tool.DepsHandler"
+    }
   ]
 }

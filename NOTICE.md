@@ -27,6 +27,7 @@
 | 前端 | `app/pages/toolbox/book_source.vue`（Vuetify2 + Nuxt 页面） | `frontend/index.html` + `frontend/app.js`（自包含原生静态页，走 `toolbox-bridge.js`） | 外部工具前端运行在 iframe 内，不依赖宿主的 Vue/Vuetify |
 | 文案 | 合并进 `app/locales/{zh,en,zh-TW}.json` 的 `bookSource` 命名空间 | `frontend/locales/*.json`，键名扁平化为 `bookSource.xxx` | 外部工具自带文案，翻译内容逐条一致 |
 | `tools/merge_locales.py` | 存在 | 删除 | 只有内置形态才需要往宿主 locale 文件里合并 |
+| 书源包导入 | 只认 `importBookSource.json/.txt`，且逐条 `add_source()` | 按**内容**识别（扫所有 `.json/.txt`）＋整包只落盘一次 | 见下方第 3、4 条 |
 | 依赖声明 | `requirements.txt` 追加 `dukpy` | 不改宿主，运行时探测 | 外部工具不能改宿主依赖，缺依赖时降级并给出明确提示 |
 
 除上述改造外，另修了两处上游问题（都在本工具包内）：
@@ -36,6 +37,18 @@
    （对齐宿主 `toolbox_manager._safe_extract()` 的做法）。
 2. **三语文案缺 3 个键**：上游 Vue 页面用到 `searchHint` / `confirmDownloadAllMsg` /
    `testReachable`，但三个 locale 文件里都没有，界面会直接显示原始 key。已补齐。
+3. **书源包导入只认文件名**：上游只处理 `importBookSource.json` / `importBookSource.txt`，
+   而真实流传的书源包命名五花八门（`booksources.seed.json`、`tickmao-legado-full.json`、
+   `shidahuilang-good.json`…）→ 结果是"导入成功，新增 0 个书源"。
+   现在扫 zip 里所有 `.json`/`.txt`，用结构判断（有 `bookSourceName` + `bookSourceUrl` 才算书源），
+   无关 JSON 跳过并记明原因；`importBookSource.*` 仍排在最后处理（同名书源以它为准）。
+   拿 `talebook-booksource-presets.zip`（6 个文件 / 3287 条）实测：修复前 0 条，修复后
+   0.79 秒导入 2186 条（447 条是跨文件同名被更新，654 条因依赖 `java.ajax`/`<js>` 被跳过）。
+4. **导入是 O(n²)**：上游逐条调 `add_source()`，而它每次都"读全量 → 改 → 写全量"，
+   实测 50/100/200/400/800 条 = 0.20/0.62/2.03/6.55/23.37 秒，2973 条要 5 分钟以上。
+   改成在内存里合并、整包只 `_save_sources()` 一次（仍在同一把 `_sources_lock` 下）。
+5. **"没导进来"被报成成功**：新增 `no_sources` 状态与准确的文案（`导入完成：新增 X，更新 Y，
+   跳过 Z` / `没有导入任何书源：跳过 N 条…`），不再出现"导入成功，新增 0 个书源"。
 
 引擎代码本身（`backend/engine/`）与原项目保持逐字节一致，便于与上游对账、后续同步。
 

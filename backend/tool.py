@@ -171,6 +171,33 @@ def safe_extract_zip(zip_path: str, dest_dir: str) -> None:
         zf.extractall(dest_dir)
 
 
+_LEGACY_SOURCE_FILENAMES = ("importBookSource.json", "importBookSource.txt")
+_SOURCE_SCAN_EXTS = (".json", ".txt")
+
+
+def _candidate_source_files(root: str):
+    """列出 zip 解压目录里"可能是书源数据"的文件（相对路径），并排好处理顺序。
+
+    ① 先其余 `.json` / `.txt`，按路径排序（预设包）；
+    ② 最后才是 `importBookSource.json` / `importBookSource.txt`（Legado 自己的导出命名）。
+
+    **顺序为什么是这样**：导入是依次并入的，同名书源后处理到的会覆盖先前的，所以把
+    "用户自己导出的那份"放最后 → **同名时以 `importBookSource.*` 为准**，符合直觉；
+    同时预设包之间的优先级也由文件名排序决定，同一份 zip 每次导入结果一致。
+
+    为什么不能只认 ②：实际流传的书源包名字五花八门（`booksources.seed.json`、
+    `tickmao-legado-full.json`、`shidahuilang-good.json`…），只认固定文件名会"导入成功但 0 条"。
+    """
+    legacy, others = [], []
+    for dirpath, _dirs, files in os.walk(root):
+        for fn in sorted(files):
+            if not fn.lower().endswith(_SOURCE_SCAN_EXTS):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, fn), root).replace(os.sep, "/")
+            (legacy if fn in _LEGACY_SOURCE_FILENAMES else others).append(rel)
+    return sorted(others) + legacy
+
+
 def describe_environment() -> dict:
     """探测本工具需要/可选的第三方依赖，供前端解释能力降级。
 
@@ -245,7 +272,7 @@ class BookSourceTool(BaseTool):
             "tool_id": TOOL_ID,
             "name": "书源引擎",
             "description": "Legado 3.0 兼容书源引擎：书源管理、多源搜索、正文抓取与 EPUB 生成",
-            "revision": "1.2.0",
+            "revision": "1.2.1",
             "author": "黏菌",
             "publish_date": "2026-09-20",
             "repo_url": "https://github.com/shiningsprk-arch/tool_book_source",
@@ -567,19 +594,31 @@ class BookSourceTool(BaseTool):
             logger.error("import book source from url failed: %s", exc)
             return {"status": "fetch_failed", "added": 0, "message": f"拉取书源 URL 失败：{exc}"}
 
+        if not self._looks_like_sources(data):
+            return {"status": "no_sources", "added": 0, "updated": 0, "skipped": 0,
+                    "message": "该 URL 返回的不是书源数据（缺少 bookSourceName/bookSourceUrl）"}
         return self._import_items(data, source_label="url")
 
     @AsyncService.register_function
     def import_sources_from_zip(self, zip_path: str) -> dict:
-        """从 ZIP 文件导入书源。跳过引擎不兼容的书源。
+        """从 ZIP 文件导入书源。`status` = ok / no_sources / format_error。
 
-        解压走 `safe_extract_zip()`（上游这里是裸的 `extractall()`，恶意 zip 可以穿越出
-        临时目录），另外限制只读 `importBookSource.json` / `importBookSource.txt`。
+        与上游的三处不同，都是"能不能真的用起来"的问题：
+
+        1. **解压走 `safe_extract_zip()`**：上游是裸的 `zipfile.extractall()`，成员名带 `../`
+           的恶意 zip 能写到解压目录之外。
+        2. **按内容识别来源文件，而不是只认文件名**（见 `_candidate_source_files()`）：
+           上游只看 `importBookSource.json/.txt`，而真实书源包的命名五花八门，结果是
+           "导入成功，新增 0 个书源"。现在扫 zip 里所有 `.json`/`.txt`，用
+           `_looks_like_sources()` 按结构判断；无关 JSON（配置、元数据表）跳过并记明原因。
+           同名书源以 `importBookSource.*` 为准（它排在最后处理），其次按文件名排序决定。
+        3. `_import_items()` 改成整包只落盘一次：上游逐条 `add_source()` 是 O(n²)，
+           实测 800 条 23 秒、3000 条 5 分钟以上。
         """
         errors = []
-        added = 0
-        updated = 0
-        skipped = 0
+        added = updated = skipped = 0
+        used = []
+        seen_files = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
             try:
@@ -588,29 +627,55 @@ class BookSourceTool(BaseTool):
                 return {"status": "format_error", "added": 0, "updated": 0, "skipped": 0,
                         "message": f"不是合法的 zip 文件：{exc}", "errors": [str(exc)]}
 
-            for root, _dirs, files in os.walk(tmpdir):
-                for fn in files:
-                    if fn not in ("importBookSource.json", "importBookSource.txt"):
-                        continue
-                    fpath = os.path.join(root, fn)
-                    try:
-                        with open(fpath, "r", encoding="utf-8") as f:
-                            data = json.load(f)
-                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-                        errors.append(f"{fn}: 解析失败 — {exc}")
-                        continue
-                    result = self._import_items(data, source_label=fn, errors=errors)
-                    added += result["added"]
-                    updated += result["updated"]
-                    skipped += result["skipped"]
-                    errors = result["errors"]
-                    break
+            for rel in _candidate_source_files(tmpdir):
+                seen_files.append(rel)
+                fpath = os.path.join(tmpdir, rel)
+                try:
+                    with open(fpath, "r", encoding="utf-8-sig") as f:
+                        data = json.load(f)
+                except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+                    errors.append(f"{rel}: 解析失败 — {exc}")
+                    continue
+                if not self._looks_like_sources(data):
+                    errors.append(f"{rel}: 跳过 — 不是书源数据（无 bookSourceName/bookSourceUrl）")
+                    continue
+                result = self._import_items(data, source_label=rel, errors=errors)
+                added += result["added"]
+                updated += result["updated"]
+                skipped += result["skipped"]
+                errors = result["errors"]
+                if result["status"] == "ok":
+                    used.append(rel)
+
+        if not used:
+            return {"status": "no_sources", "added": added, "updated": updated, "skipped": skipped,
+                    "scanned": seen_files[:20], "errors": errors[:10],
+                    "message": "压缩包里没找到书源数据（看过：%s）"
+                               % ("、".join(seen_files[:5]) or "没有 .json/.txt")}
 
         return {"status": "ok", "added": added, "updated": updated,
-                "skipped": skipped, "errors": errors[:10]}
+                "skipped": skipped, "files": used, "errors": errors[:10]}
+
+    @staticmethod
+    def _looks_like_sources(data) -> bool:
+        """按**结构**判断是不是书源数据（而不是靠文件名）。
+
+        只看前 10 条：真实书源包里偶尔前面有非书源的占位项，但"整份都不是书源"的情况更常见
+        （配置、元数据表、订阅索引…），所以按"有没有一条像"来决定放不放行。
+        """
+        items = data if isinstance(data, list) else [data]
+        for item in items[:10]:
+            if isinstance(item, dict) and item.get("bookSourceName") and item.get("bookSourceUrl"):
+                return True
+        return False
 
     def _import_items(self, data, source_label: str = "", errors: Optional[list] = None) -> dict:
-        """把一份书源 JSON（数组或单对象）里兼容的书源并入书源表。"""
+        """把一份书源 JSON（数组或单对象）里兼容的书源**一次性**并入书源表。
+
+        ⚠️ 刻意不逐条调 `add_source()`：那个方法每次都"读全量 → 改 → 写全量"，整包导入会退化成
+        O(n²)（实测 50/100/200/400/800 条 = 0.20/0.62/2.03/6.55/23.37 秒，2973 条 >5 分钟）。
+        这里在内存里合并，最后只 `_save_sources()` 一次（仍在 `_sources_lock` 里，语义不变）。
+        """
         errors = [] if errors is None else errors
         if isinstance(data, dict):
             data = [data]
@@ -618,8 +683,7 @@ class BookSourceTool(BaseTool):
             return {"status": "format_error", "added": 0, "updated": 0, "skipped": 0,
                     "message": "书源格式应为 JSON 数组或对象", "errors": errors}
 
-        added = 0
-        updated = 0
+        accepted = []
         skipped = 0
         for item in data:
             if not isinstance(item, dict):
@@ -636,11 +700,31 @@ class BookSourceTool(BaseTool):
                 errors.append(f"{name}: 跳过 — {reason}")
                 continue
 
-            result = self.add_source(item)
-            if result["status"] == "added":
-                added += 1
-            else:
-                updated += 1
+            accepted.append(item)
+
+        added = 0
+        updated = 0
+        if accepted:
+            with self._sources_lock:
+                sources = self._load_sources()
+                index = {s.bookSourceName: i for i, s in enumerate(sources)}
+                for item in accepted:
+                    try:
+                        new_source = BookSource.from_dict(item)
+                    except Exception as exc:  # 单条坏数据不该毁掉整包导入
+                        errors.append("%s: 解析失败 — %s"
+                                      % (item.get("bookSourceName") or "unknown", exc))
+                        continue
+                    name = new_source.bookSourceName
+                    if name in index:
+                        sources[index[name]] = new_source
+                        updated += 1
+                    else:
+                        index[name] = len(sources)
+                        sources.append(new_source)
+                        added += 1
+                if added or updated:
+                    self._save_sources(sources)  # ← 整包只写一次盘
 
         return {"status": "ok", "added": added, "updated": updated,
                 "skipped": skipped, "errors": errors}
@@ -988,6 +1072,30 @@ def _max_chapters(data: dict, default: int = 9999) -> int:
         return default
 
 
+# 导入接口的 status -> 响应。三种情况必须分开说，否则"导入成功，新增 0 个书源"会让人以为
+# 导入成功了（实际上往往是"压缩包里的文件名不是 importBookSource.json"这种问题）。
+_IMPORT_FAILED_STATUS = ("format_error", "no_sources", "fetch_failed")
+
+
+def _import_response(result: dict) -> dict:
+    """把 import_sources_from_zip / import_sources_from_url 的结果翻译成接口响应。"""
+    status = result.get("status")
+    if status in _IMPORT_FAILED_STATUS:
+        return {"err": "book_source.import_failed",
+                "msg": result.get("message", _("导入失败")), "data": result}
+    added = result.get("added", 0)
+    updated = result.get("updated", 0)
+    skipped = result.get("skipped", 0)
+    if not added and not updated:
+        # 认出了书源文件，但一条都没进来（比如全依赖 <js> 规则）—— 也算失败，别报"成功"
+        return {"err": "book_source.import_failed",
+                "msg": _("没有导入任何书源：跳过 %s 条（多为依赖 JS 规则或格式不完整）") % skipped,
+                "data": result}
+    return {"err": "ok",
+            "msg": _("导入完成：新增 %s，更新 %s，跳过 %s") % (added, updated, skipped),
+            "data": result}
+
+
 def _deps_error(err) -> dict:
     return {"err": "deps.missing", "msg": _("宿主环境缺少依赖：%s") % err}
 
@@ -1234,11 +1342,7 @@ class ImportZipHandler(_ToolHandler):
             except OSError:
                 pass
 
-        if result.get("status") == "ok" or result.get("added", 0) > 0:
-            return {"err": "ok", "msg": _("导入成功，新增 %s 个书源") % result.get("added", 0),
-                    "data": result}
-        return {"err": "book_source.import_failed",
-                "msg": result.get("message", _("导入失败")), "data": result}
+        return _import_response(result)
 
 
 class ImportUrlHandler(_ToolHandler):
@@ -1256,11 +1360,7 @@ class ImportUrlHandler(_ToolHandler):
             return _deps_error(err)
         except (ValueError, RuntimeError) as err:
             return {"err": "book_source.import_failed", "msg": str(err)}
-        if result.get("status") == "ok" or result.get("added", 0) > 0:
-            return {"err": "ok", "msg": _("导入成功，新增 %s 个书源") % result.get("added", 0),
-                    "data": result}
-        return {"err": "book_source.import_failed",
-                "msg": result.get("message", _("导入失败")), "data": result}
+        return _import_response(result)
 
 
 class DownloadEpubHandler(BaseHandler):
