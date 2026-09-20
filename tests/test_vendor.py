@@ -22,6 +22,7 @@
 """
 import json
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -299,6 +300,38 @@ class TestRealLoad(unittest.TestCase):
         self.assertEqual(out["replace"], "ba")
         self.assertEqual(out["replace_re"], "bb")
         self.assertEqual(out["calc"], "3!")
+
+    def test_loading_copy_leaves_no_bytecode_in_package(self):
+        """副本是随包发布的只读内容：import 过之后**不能**在包目录里留下 __pycache__。
+
+        这条不是洁癖：随包清单（VENDOR.json 的"不允许出现清单外的文件"）会因此校验失败 ——
+        CI 的 cp312 runner 上就是这么炸出来的（backend/dukpy_vendor.py 现在用
+        sys.dont_write_bytecode 关掉了写入）。
+        """
+        match = self.matching_extra_dir()
+        if not match:
+            self.skipTest("没有与当前解释器匹配的副本")
+        root, tag = match
+        copy_dir = os.path.join(root, tag, "dukpy")
+        shutil.rmtree(os.path.join(copy_dir, "__pycache__"), ignore_errors=True)
+
+        code = (
+            "import sys\n"
+            "sys.path.insert(0, %r)\n"
+            "from backend import dukpy_vendor\n"
+            "print(dukpy_vendor.install()['source'])\n"
+        ) % PKG_ROOT
+        proc = run_python(code, env_extra={
+            "BOOK_SOURCE_VENDOR_DIR": root, "BOOK_SOURCE_PREFER_BUNDLED": "1"})
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn(proc.stdout.strip().splitlines()[-1], ("bundled", "external"))
+
+        leftovers = []
+        for dirpath, _dirs, files in os.walk(os.path.join(root, tag)):
+            for fn in files:
+                if fn.endswith((".pyc", ".pyo")) or "__pycache__" in dirpath:
+                    leftovers.append(os.path.join(dirpath, fn))
+        self.assertEqual(leftovers, [], "加载随包副本后不该在包目录里留下字节码缓存")
 
     def test_host_copy_wins_over_bundled(self):
         """宿主自己装了 dukpy 时优先用宿主的（不管版本/路径，都是运行环境自洽的那一份）。"""

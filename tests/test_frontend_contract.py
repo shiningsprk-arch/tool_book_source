@@ -29,8 +29,8 @@ class FrontendCase(unittest.TestCase):
         locales_dir = os.path.join(FRONTEND, "locales")
         for name in os.listdir(locales_dir):
             if name.endswith(".json") and name != "manifest.json":
-                cls.locales[name[:-5]] = json.load(io.open(os.path.join(locales_dir, name),
-                                                          encoding="utf-8"))
+                cls.locales[name[:-5]] = json.load(
+                    io.open(os.path.join(locales_dir, name), encoding="utf-8"))
 
 
 class TestI18n(FrontendCase):

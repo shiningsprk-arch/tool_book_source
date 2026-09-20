@@ -8,7 +8,7 @@
 
 | 手段 | 覆盖 | 能证明什么 |
 |---|---|---|
-| `pytest tests`（217 项） | 引擎 + 后端 + 随包依赖 + 包形状 + 前端契约 | 引擎逻辑没被改造破坏（上游 119 项原样全绿）；CRUD/导入/任务/15 条路由的响应契约在本机真跑；随包 dukpy 副本与 `VENDOR.json` 逐字节一致、二进制架构与目录 tag 相符；文案键、元素 id、接口路径、包内文件一一对应 |
+| `pytest tests`（218 项） | 引擎 + 后端 + 随包依赖 + 包形状 + 前端契约 | 引擎逻辑没被改造破坏（上游 119 项原样全绿）；CRUD/导入/任务/15 条路由的响应契约在本机真跑；随包 dukpy 副本与 `VENDOR.json` 逐字节一致、二进制架构与目录 tag 相符；文案键、元素 id、接口路径、包内文件一一对应 |
 | `node dev/preview/ui_smoke.mjs`（29 项） | 前端交互 | 假宿主下真 fetch + 真 DOM 点一遍：标签页、筛选、启停、六个对话框、搜索轮询、分页、下载/生成进度、封面兜底、Esc/遮罩关闭，全程无未捕获异常 |
 | 子进程真加载随包 dukpy | 内置依赖链路 | 用与当前解释器 ABI 匹配的副本跑通：`install()` 挑到副本 → `sys.modules['dukpy']` 指向副本内文件 → 引擎 `_HAS_DUKPY` 为真 → `run_js()` 真的执行 JS（`'aa'.replace('a','b')`='ba'、`/a/g` → 'bb'、`(1+2)+result`='3!'） |
 | **未做** | 真机 | 15 条路由在真实 MyBooks 进程里的挂载、Calibre 入库、**cp312 真机上的随包 dukpy 首次加载**、真站点抓取、耗时 |
@@ -171,8 +171,12 @@ handler 类真实存在，`tests/test_frontend_contract.py` 双向检查"前端�
   在 `finally` 里删除。
 - **随包副本零写入**：内置的 dukpy（`backend/vendor/dukpy/`）**不需要解压到临时目录**——
   用 `importlib.util.spec_from_file_location(..., submodule_search_locations=[...])` 把包目录
-  当 `__path__` 直接加载，原生模块从包内只读路径 `dlopen`。所以运行期不会多出任何缓存、
-  临时文件或残留（也因此天然没有"缓存目录竞态/被别的进程改写"的问题）。
+  当 `__path__` 直接加载，原生模块从包内只读路径 `dlopen`。并且加载期间显式
+  `sys.dont_write_bytecode = True`：否则解释器会往 `backend/vendor/.../dukpy/__pycache__/`
+  里写 `.pyc`，既让"运行期零写入"不成立，也会让随包清单（不允许出现清单外文件）在别人机器
+  上校验失败——**这正是 CI 的 cp312 runner 上炸出来的问题**，现在有
+  `test_loading_copy_leaves_no_bytecode_in_package` 钉住。所以运行期不会多出任何缓存、临时
+  文件或残留（也因此天然没有"缓存目录竞态/被别的进程改写"的问题）。
 - **路径穿越**：书名会被 `re.sub(r'[\\/:*?"<>|]', '_', title)` 净化后再拼进产物路径；
   zip 成员走 `safe_extract_zip()` 校验；`download_epub` 不接受任何路径参数，只回
   "该用户最近一次生成任务的产物路径"（该路径由服务端自己生成）。

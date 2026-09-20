@@ -23,4 +23,3 @@ try:
     _DUKPY_STATE = dukpy_vendor.install()
 except Exception as _err:  # 环境异常不应该让整个测试套件收集失败
     _DUKPY_STATE = {"source": "unavailable", "error": str(_err)}
-

@@ -219,8 +219,14 @@ def verify(manifest, verbose=True):
             if actual != item["sha256"]:
                 problems.append("%s: %s 内容被改过（sha256 不符）" % (tag, item["path"]))
         # 反向：目录里不能有清单里没写的东西
-        for root, _dirs, files in os.walk(out_dir):
+        # （`__pycache__`/`.pyc` 例外：那是解释器 import 过副本之后留下的运行时产物，
+        #   不是随包内容。正常情况下 backend/dukpy_vendor.py 会关掉写字节码，
+        #   但别人手动 compileall、或者旧版本留下的缓存不该让校验失败。）
+        for root, dirs, files in os.walk(out_dir):
+            dirs[:] = [d for d in dirs if d != "__pycache__"]
             for fn in files:
+                if fn.endswith((".pyc", ".pyo")):
+                    continue
                 rel = os.path.relpath(os.path.join(root, fn), out_dir).replace(os.sep, "/")
                 if rel == MANIFEST_NAME:
                     continue

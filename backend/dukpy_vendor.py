@@ -106,11 +106,18 @@ def _load_package(root: str, tag: str):
     module = importlib.util.module_from_spec(spec)
     # 先登记再执行：dukpy/__init__.py 里有 `from . import _dukpy`，相对导入要求包里已有自己
     sys.modules["dukpy"] = module
+    # **不要让解释器往包目录里写 __pycache__**：副本是随包发布的只读文件，写进 .pyc 会让
+    # ①"运行期零写入"不成立；②随包清单（VENDOR.json 的"文件清单不允许出现多余文件"）
+    # 在别人机器上校验失败——CI 的 cp312 runner 上就是这么炸出来的。
+    saved_flag = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     try:
         spec.loader.exec_module(module)
     except Exception as err:  # ABI 不匹配、glibc 太旧、文件损坏都会落到这里
         sys.modules.pop("dukpy", None)
         return None, "%s: %s" % (type(err).__name__, err)
+    finally:
+        sys.dont_write_bytecode = saved_flag
     return module, ""
 
 
